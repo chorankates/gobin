@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -50,20 +51,21 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to upgrade connection: %v", err)
 		return
 	}
-	defer conn.Close()
 
 	// Create new client
 	client := &game.Client{
 		ID:    fmt.Sprintf("client-%d", len(h.game.GetClients())+1),
 		Name:  game.GenerateName(),
 		Board: make([]bool, 16),
+		Conn:  conn,
+		Send:  make(chan []byte, 256),
 	}
 	h.game.AddClient(client)
-	defer h.game.RemoveClient(client)
 
 	// Send initial board state
 	msg := Message{
-		Type:    "init",
+		Type:    TypeInitBoard,
+		Board:   client.Board,
 		Words:   h.game.ShuffleWords(),
 		Name:    client.Name,
 		Clients: h.game.GetClients(),
@@ -76,42 +78,66 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	// Broadcast updated client list
 	h.broadcastClientList()
 
-	// Handle messages
+	// Start goroutines for reading and writing
+	go h.readPump(client)
+	go h.writePump(client)
+}
+
+// readPump pumps messages from the WebSocket connection to the hub.
+func (h *Handler) readPump(client *game.Client) {
+	defer func() {
+		client.Conn.Close()
+		h.game.RemoveClient(client)
+		h.broadcastClientList() // Update client list when someone disconnects
+	}()
+
 	for {
-		var msg Message
-		if err := conn.ReadJSON(&msg); err != nil {
-			log.Printf("Failed to read message: %v", err)
+		_, message, err := client.Conn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("error: %v", err)
+			}
 			break
 		}
 
-		switch msg.Type {
-		case "mark":
-			if msg.Index >= 0 && msg.Index < 16 {
-				client.Board[msg.Index] = true
+		var msg Message
+		if err := json.Unmarshal(message, &msg); err != nil {
+			log.Printf("error unmarshaling message: %v", err)
+			continue
+		}
 
-				// Check for win
-				if game.CheckWin(client.Board) {
-					// Notify winner
-					winMsg := Message{
-						Type:  "win",
-						Win:   true,
-						Name:  client.Name,
-						Board: client.Board,
-					}
-					if err := conn.WriteJSON(winMsg); err != nil {
-						log.Printf("Failed to send win message: %v", err)
-					}
+		if msg.Type == TypeMarkTile && msg.Index >= 0 && msg.Index < 16 {
+			// Update this client's board
+			client.Board[msg.Index] = !client.Board[msg.Index]
 
-					// Notify other clients
-					h.broadcastClientList()
-				} else {
-					// Send updated board
-					updateMsg := Message{
-						Type:  "update",
-						Board: client.Board,
-					}
-					if err := conn.WriteJSON(updateMsg); err != nil {
-						log.Printf("Failed to send update: %v", err)
+			// Check for win
+			hasWon := game.CheckWin(client.Board)
+
+			// Send updated board state back to this client
+			response := Message{
+				Type:  TypeTileMarked,
+				Index: msg.Index,
+				Board: client.Board,
+				Win:   hasWon,
+			}
+			if responseMsg, err := json.Marshal(response); err == nil {
+				client.Send <- responseMsg
+			}
+
+			// Broadcast updated client list with new marked count
+			h.broadcastClientList()
+
+			// If there's a win, notify all other clients
+			if hasWon {
+				winMsg := Message{
+					Type: TypePlayerWon,
+					Name: client.Name,
+				}
+				if winResponse, err := json.Marshal(winMsg); err == nil {
+					for _, otherClient := range h.game.GetAllClients() {
+						if otherClient != client {
+							otherClient.Send <- winResponse
+						}
 					}
 				}
 			}
@@ -119,9 +145,75 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// writePump pumps messages from the hub to the WebSocket connection.
+func (h *Handler) writePump(client *game.Client) {
+	defer func() {
+		client.Conn.Close()
+	}()
+
+	for {
+		select {
+		case message, ok := <-client.Send:
+			if !ok {
+				// The hub closed the channel.
+				client.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+
+			w, err := client.Conn.NextWriter(websocket.TextMessage)
+			if err != nil {
+				return
+			}
+			w.Write(message)
+
+			// Add queued messages to the current websocket message.
+			n := len(client.Send)
+			for i := 0; i < n; i++ {
+				w.Write([]byte{'\n'})
+				w.Write(<-client.Send)
+			}
+
+			if err := w.Close(); err != nil {
+				return
+			}
+		}
+	}
+}
+
 // broadcastClientList sends the current client list to all connected clients
 func (h *Handler) broadcastClientList() {
-	// In a real implementation, we would need to maintain a list of active connections
-	// and broadcast to all of them. For now, this is a placeholder.
-	log.Printf("Current clients: %v", h.game.GetClients())
+	// Create a map of client names and their marked tile counts
+	clientInfo := make(map[string]int)
+	for _, client := range h.game.GetAllClients() {
+		clientInfo[client.Name] = game.CountMarkedTiles(client.Board)
+	}
+
+	log.Printf("Broadcasting client list update. Current clients: %v", clientInfo)
+
+	// Create the message
+	msg := Message{
+		Type:    TypeClientList,
+		Clients: clientInfo,
+	}
+
+	// Convert to JSON
+	jsonMsg, err := json.Marshal(msg)
+	if err != nil {
+		log.Printf("Error marshaling client list: %v", err)
+		return
+	}
+
+	// Broadcast to all clients
+	clients := h.game.GetAllClients()
+	log.Printf("Sending client list to %d connected clients", len(clients))
+	for _, client := range clients {
+		select {
+		case client.Send <- jsonMsg:
+			log.Printf("Sent client list to client %s", client.Name)
+		default:
+			log.Printf("Failed to send client list to client %s - channel full or closed", client.Name)
+			close(client.Send)
+			h.game.RemoveClient(client)
+		}
+	}
 }

@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"os"
 	"sync"
+
+	"github.com/gorilla/websocket"
 )
 
 // Game represents the bingo game state
@@ -20,6 +22,8 @@ type Client struct {
 	ID    string
 	Name  string
 	Board []bool
+	Conn  *websocket.Conn
+	Send  chan []byte
 }
 
 // New creates a new game instance
@@ -79,7 +83,7 @@ func (g *Game) GetClients() map[string]int {
 
 	clientInfo := make(map[string]int)
 	for client := range g.clients {
-		clientInfo[client.Name] = countMarkedTiles(client.Board)
+		clientInfo[client.Name] = CountMarkedTiles(client.Board)
 	}
 	return clientInfo
 }
@@ -111,8 +115,19 @@ func CheckWin(board []bool) bool {
 	return false
 }
 
-// countMarkedTiles returns the number of marked tiles in a board
-func countMarkedTiles(board []bool) int {
+// GetAllClients returns a slice of all connected clients
+func (g *Game) GetAllClients() []*Client {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	clients := make([]*Client, 0, len(g.clients))
+	for client := range g.clients {
+		clients = append(clients, client)
+	}
+	return clients
+}
+
+func CountMarkedTiles(board []bool) int {
 	count := 0
 	for _, marked := range board {
 		if marked {

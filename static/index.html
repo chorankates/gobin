@@ -129,6 +129,7 @@
         <p id="winText">You won!</p>
         <button onclick="resetGame()">New Game</button>
     </div>
+    <script src="js/messages.js"></script>
     <script>
         let ws;
         let board = Array(16).fill(false);
@@ -144,25 +145,30 @@
             
             ws.onmessage = function(event) {
                 const data = JSON.parse(event.data);
+                console.log('Received WebSocket message:', data);
                 switch(data.type) {
-                    case 'init_board':
+                    case MessageType.INIT_BOARD:
+                        console.log('Processing INIT_BOARD message');
                         board = data.board;
                         words = data.words;
                         playerName = data.name;
                         document.getElementById('playerName').textContent = `You are: ${playerName}`;
                         updateBoardDisplay();
                         break;
-                    case 'tile_marked':
+                    case MessageType.TILE_MARKED:
+                        console.log('Processing TILE_MARKED message');
                         board = data.board;
                         updateBoardDisplay();
                         if (data.win) {
                             showWinMessage(true);
                         }
                         break;
-                    case 'player_won':
+                    case MessageType.PLAYER_WON:
+                        console.log('Processing PLAYER_WON message');
                         showWinMessage(false, data.name);
                         break;
-                    case 'client_list':
+                    case MessageType.CLIENT_LIST:
+                        console.log('Processing CLIENT_LIST message:', data.clients);
                         updatePlayerList(data.clients);
                         break;
                 }
@@ -176,9 +182,11 @@
         }
 
         function updatePlayerList(clients) {
+            console.log('Updating player list with:', clients);
             const playerList = document.getElementById('playerList');
             playerList.innerHTML = '';
             Object.entries(clients).forEach(([name, count]) => {
+                console.log(`Adding player to list: ${name} with ${count} tiles`);
                 const li = document.createElement('li');
                 const nameSpan = document.createElement('span');
                 nameSpan.textContent = name;
@@ -217,7 +225,7 @@
         function markTile(index) {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({
-                    type: 'mark_tile',
+                    type: MessageType.MARK_TILE,
                     index: index
                 }));
             }
