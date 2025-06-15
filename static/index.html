@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corporate Bingo</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+        }
+        .game-container {
+            display: flex;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 20px auto;
+        }
+        .bingo-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            width: 600px;
+        }
+        .bingo-tile {
+            aspect-ratio: 1;
+            border: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 10px;
+            cursor: pointer;
+            background-color: white;
+            font-size: 0.9em;
+            word-wrap: break-word;
+            overflow: hidden;
+        }
+        .bingo-tile.marked {
+            background-color: #90EE90;
+        }
+        .win-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+            z-index: 1000;
+        }
+        .win-message.show {
+            display: block;
+        }
+        .win-message h2 {
+            margin: 0 0 10px 0;
+            color: #90EE90;
+        }
+        .win-message button {
+            background-color: #90EE90;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .win-message button:hover {
+            background-color: #7ED321;
+        }
+        .player-info {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            min-width: 200px;
+        }
+        .player-info h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .player-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .player-list li {
+            padding: 5px 0;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .player-list li:last-child {
+            border-bottom: none;
+        }
+        .player-name {
+            font-weight: bold;
+            color: #666;
+        }
+        .tile-count {
+            background-color: #90EE90;
+            color: #333;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Corporate Bingo</h1>
+    <div class="game-container">
+        <div class="bingo-board" id="bingoBoard">
+            <!-- Tiles will be added dynamically -->
+        </div>
+        <div class="player-info">
+            <h2>Players</h2>
+            <div class="player-name" id="playerName"></div>
+            <h3>Connected Players</h3>
+            <ul class="player-list" id="playerList">
+                <!-- Player list will be added dynamically -->
+            </ul>
+        </div>
+    </div>
+    <div class="win-message" id="winMessage">
+        <h2>BINGO!</h2>
+        <p id="winText">You won!</p>
+        <button onclick="resetGame()">New Game</button>
+    </div>
+    <script>
+        let ws;
+        let board = Array(16).fill(false);
+        let words = [];
+        let playerName = "";
+
+        function connect() {
+            ws = new WebSocket('ws://' + window.location.host + '/ws');
+            
+            ws.onopen = function() {
+                console.log('Connected to server');
+            };
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                switch(data.type) {
+                    case 'init_board':
+                        board = data.board;
+                        words = data.words;
+                        playerName = data.name;
+                        document.getElementById('playerName').textContent = `You are: ${playerName}`;
+                        updateBoardDisplay();
+                        break;
+                    case 'tile_marked':
+                        board = data.board;
+                        updateBoardDisplay();
+                        if (data.win) {
+                            showWinMessage(true);
+                        }
+                        break;
+                    case 'player_won':
+                        showWinMessage(false, data.name);
+                        break;
+                    case 'client_list':
+                        updatePlayerList(data.clients);
+                        break;
+                }
+            };
+            
+            ws.onclose = function() {
+                console.log('Disconnected from server');
+                // Try to reconnect after 5 seconds
+                setTimeout(connect, 5000);
+            };
+        }
+
+        function updatePlayerList(clients) {
+            const playerList = document.getElementById('playerList');
+            playerList.innerHTML = '';
+            Object.entries(clients).forEach(([name, count]) => {
+                const li = document.createElement('li');
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = name;
+                const countSpan = document.createElement('span');
+                countSpan.className = 'tile-count';
+                countSpan.textContent = `${count} tiles`;
+                li.appendChild(nameSpan);
+                li.appendChild(countSpan);
+                playerList.appendChild(li);
+            });
+        }
+
+        function showWinMessage(isWinner, winnerName) {
+            const winMessage = document.getElementById('winMessage');
+            const winText = document.getElementById('winText');
+            winText.textContent = isWinner ? 'You won!' : `${winnerName} won!`;
+            winMessage.classList.add('show');
+        }
+
+        function resetGame() {
+            board = Array(16).fill(false);
+            updateBoardDisplay();
+            document.getElementById('winMessage').classList.remove('show');
+        }
+
+        function updateBoardDisplay() {
+            for (let i = 0; i < board.length; i++) {
+                const tile = document.getElementById(`tile-${i}`);
+                if (tile) {
+                    tile.classList.toggle('marked', board[i]);
+                    tile.textContent = words[i] || `Tile ${i + 1}`;
+                }
+            }
+        }
+
+        function markTile(index) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'mark_tile',
+                    index: index
+                }));
+            }
+        }
+
+        // Initialize the board
+        function initBoard() {
+            const boardElement = document.getElementById('bingoBoard');
+            // Create 16 tiles
+            for (let i = 0; i < 16; i++) {
+                const tile = document.createElement('div');
+                tile.className = 'bingo-tile';
+                tile.id = `tile-${i}`;
+                tile.textContent = `Tile ${i + 1}`;
+                tile.onclick = () => markTile(i);
+                boardElement.appendChild(tile);
+            }
+        }
+
+        // Connect to WebSocket and initialize the board when the page loads
+        window.onload = function() {
+            connect();
+            initBoard();
+        };
+    </script>
+</body>
+</html> 
