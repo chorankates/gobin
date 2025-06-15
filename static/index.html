@@ -36,9 +36,14 @@
             font-size: 0.9em;
             word-wrap: break-word;
             overflow: hidden;
+            transition: background-color 0.2s ease;
         }
         .bingo-tile.marked {
             background-color: #90EE90;
+        }
+        .bingo-tile.loading {
+            background-color: #e0e0e0;
+            cursor: not-allowed;
         }
         .win-message {
             position: fixed;
@@ -135,12 +140,18 @@
         let board = Array(16).fill(false);
         let words = [];
         let playerName = "";
+        let clickTimeout = null;
+        let pendingClicks = new Map();
+        let sequenceNumber = 0;
 
         function connect() {
             ws = new WebSocket('ws://' + window.location.host + '/ws');
             
             ws.onopen = function() {
                 console.log('Connected to server');
+                // Clear any pending clicks when reconnected
+                pendingClicks.clear();
+                updateBoardDisplay();
             };
             
             ws.onmessage = function(event) {
@@ -157,10 +168,17 @@
                         break;
                     case MessageType.TILE_MARKED:
                         console.log('Processing TILE_MARKED message');
-                        board = data.board;
-                        updateBoardDisplay();
-                        if (data.win) {
-                            showWinMessage(true);
+                        // Only process if this is the expected sequence number
+                        const pendingClick = pendingClicks.get(data.index);
+                        if (pendingClick && pendingClick.sequence === data.sequence) {
+                            board = data.board;
+                            pendingClicks.delete(data.index);
+                            updateBoardDisplay();
+                            if (data.win) {
+                                showWinMessage(true);
+                            }
+                        } else {
+                            console.log('Ignoring out-of-order message for tile', data.index);
                         }
                         break;
                     case MessageType.PLAYER_WON:
@@ -178,6 +196,13 @@
                 console.log('Disconnected from server');
                 // Try to reconnect after 5 seconds
                 setTimeout(connect, 5000);
+            };
+
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                // Clear any pending clicks on error
+                pendingClicks.clear();
+                updateBoardDisplay();
             };
         }
 
@@ -213,21 +238,57 @@
         }
 
         function updateBoardDisplay() {
+            console.log('Updating board display. Board state:', board);
             for (let i = 0; i < board.length; i++) {
                 const tile = document.getElementById(`tile-${i}`);
                 if (tile) {
-                    tile.classList.toggle('marked', board[i]);
+                    const wasMarked = tile.classList.contains('marked');
+                    const shouldBeMarked = board[i];
+                    const isPending = pendingClicks.has(i);
+                    console.log(`Tile ${i}: wasMarked=${wasMarked}, shouldBeMarked=${shouldBeMarked}, isPending=${isPending}`);
+                    
+                    // Remove all states first
+                    tile.classList.remove('marked', 'loading');
+                    
+                    // Apply appropriate state
+                    if (isPending) {
+                        tile.classList.add('loading');
+                    } else if (shouldBeMarked) {
+                        tile.classList.add('marked');
+                    }
+                    
                     tile.textContent = words[i] || `Tile ${i + 1}`;
                 }
             }
         }
 
         function markTile(index) {
-            if (ws && ws.readyState === WebSocket.OPEN) {
+            console.log('Marking tile:', index, 'Current board state:', board);
+            
+            // If already pending or WebSocket not ready, ignore click
+            if (pendingClicks.has(index) || !ws || ws.readyState !== WebSocket.OPEN) {
+                console.log('Ignoring click - tile pending or WebSocket not ready');
+                return;
+            }
+
+            // Generate sequence number for this click
+            const sequence = ++sequenceNumber;
+
+            // Add to pending clicks and update UI
+            pendingClicks.set(index, { sequence });
+            updateBoardDisplay();
+
+            try {
                 ws.send(JSON.stringify({
                     type: MessageType.MARK_TILE,
-                    index: index
+                    index: index,
+                    sequence: sequence
                 }));
+            } catch (error) {
+                console.error('Failed to send WebSocket message:', error);
+                // Remove from pending clicks on error
+                pendingClicks.delete(index);
+                updateBoardDisplay();
             }
         }
 

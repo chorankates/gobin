@@ -28,13 +28,14 @@ type Handler struct {
 
 // Message represents a WebSocket message
 type Message struct {
-	Type    string         `json:"type"`
-	Index   int            `json:"index,omitempty"`
-	Board   []bool         `json:"board,omitempty"`
-	Words   []string       `json:"words,omitempty"`
-	Win     bool           `json:"win,omitempty"`
-	Name    string         `json:"name,omitempty"`
-	Clients map[string]int `json:"clients,omitempty"`
+	Type     string         `json:"type"`
+	Index    int            `json:"index,omitempty"`
+	Board    []bool         `json:"board,omitempty"`
+	Words    []string       `json:"words,omitempty"`
+	Win      bool           `json:"win,omitempty"`
+	Name     string         `json:"name,omitempty"`
+	Clients  map[string]int `json:"clients,omitempty"`
+	Sequence int            `json:"sequence,omitempty"`
 }
 
 // New creates a new WebSocket handler
@@ -115,13 +116,22 @@ func (h *Handler) readPump(client *game.Client) {
 
 			// Send updated board state back to this client
 			response := Message{
-				Type:  TypeTileMarked,
-				Index: msg.Index,
-				Board: client.Board,
-				Win:   hasWon,
+				Type:     TypeTileMarked,
+				Index:    msg.Index,
+				Board:    client.Board,
+				Win:      hasWon,
+				Sequence: msg.Sequence,
 			}
 			if responseMsg, err := json.Marshal(response); err == nil {
-				client.Send <- responseMsg
+				select {
+				case client.Send <- responseMsg:
+					// Message sent successfully
+				default:
+					// Channel is full, log error and close connection
+					log.Printf("Failed to send response to client %s - channel full", client.Name)
+					client.Conn.Close()
+					return
+				}
 			}
 
 			// Broadcast updated client list with new marked count
@@ -145,7 +155,7 @@ func (h *Handler) readPump(client *game.Client) {
 	}
 }
 
-// writePump pumps messages from the hub to the WebSocket connection.
+// writePumps messages from the hub to the WebSocket connection.
 func (h *Handler) writePump(client *game.Client) {
 	defer func() {
 		client.Conn.Close()
@@ -160,21 +170,18 @@ func (h *Handler) writePump(client *game.Client) {
 				return
 			}
 
-			w, err := client.Conn.NextWriter(websocket.TextMessage)
-			if err != nil {
+			// Write the first message
+			if err := client.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
 				return
 			}
-			w.Write(message)
 
-			// Add queued messages to the current websocket message.
+			// Write any queued messages
 			n := len(client.Send)
 			for i := 0; i < n; i++ {
-				w.Write([]byte{'\n'})
-				w.Write(<-client.Send)
-			}
-
-			if err := w.Close(); err != nil {
-				return
+				message = <-client.Send
+				if err := client.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
+					return
+				}
 			}
 		}
 	}
