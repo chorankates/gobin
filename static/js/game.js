@@ -1,0 +1,300 @@
+let ws;
+let board = Array(16).fill(false);
+let words = [];
+let playerName = "";
+let clickTimeout = null;
+let pendingClicks = new Map();
+let sequenceNumber = 0;
+
+function changeTheme(themeFile) {
+    document.getElementById('theme-style').href = 'css/' + themeFile;
+    localStorage.setItem('preferred-theme', themeFile);
+}
+
+function getNameFromCookie() {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'playerName') {
+            return decodeURIComponent(value);
+        }
+    }
+    return null;
+}
+
+function handleNameKeyPress(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        setName();
+    }
+}
+
+function setName() {
+    const nameInput = document.getElementById('nameInput');
+    const name = nameInput.value.trim();
+    if (name) {
+        // Set cookie that expires in 1 year
+        const expiryDate = new Date();
+        expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+        document.cookie = `playerName=${encodeURIComponent(name)};expires=${expiryDate.toUTCString()};path=/;SameSite=Lax`;
+        document.getElementById('namePrompt').classList.add('hidden');
+        
+        // If this is an update (not initial set), send to server
+        if (playerName) {
+            playerName = name;
+            document.getElementById('playerName').textContent = `You are: ${playerName}`;
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: MessageType.SET_NAME,
+                    name: playerName
+                }));
+            }
+        } else {
+            connect();
+        }
+    }
+}
+
+window.onload = function() {
+    const savedTheme = localStorage.getItem('preferred-theme');
+    if (savedTheme) {
+        document.getElementById('themeSelect').value = savedTheme;
+        changeTheme(savedTheme);
+    }
+    
+    playerName = getNameFromCookie();
+    if (playerName) {
+        document.getElementById('namePrompt').classList.add('hidden');
+        connect();
+    } else {
+        document.getElementById('namePrompt').classList.remove('hidden');
+    }
+    initBoard();
+};
+
+function connect() {
+    ws = new WebSocket('ws://' + window.location.host + '/ws');
+    
+    ws.onopen = function() {
+        console.log(`[${new Date().toISOString()}] Connected to server as ${playerName}`);
+        // Send player name to server
+        ws.send(JSON.stringify({
+            type: MessageType.SET_NAME,
+            name: playerName
+        }));
+        // Clear any pending clicks when reconnected
+        pendingClicks.clear();
+        updateBoardDisplay();
+    };
+    
+    ws.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        console.log(`[${new Date().toISOString()}] Received WebSocket message:`, data);
+        switch(data.type) {
+            case MessageType.INIT_BOARD:
+                console.log(`[${new Date().toISOString()}] Initializing board for player ${playerName}`);
+                board = data.board;
+                words = data.words;
+                playerName = data.name;
+                document.getElementById('playerName').textContent = `You are: ${playerName}`;
+                updateBoardDisplay();
+                break;
+            case MessageType.TILE_MARKED:
+                console.log(`[${new Date().toISOString()}] Processing tile mark: index=${data.index}, sequence=${data.sequence}, win=${data.win}`);
+                // Only process if this is the expected sequence number
+                const pendingClick = pendingClicks.get(data.index);
+                if (pendingClick && pendingClick.sequence === data.sequence) {
+                    board = data.board;
+                    pendingClicks.delete(data.index);
+                    updateBoardDisplay();
+                    if (data.win) {
+                        console.log(`[${new Date().toISOString()}] Player ${playerName} has won!`);
+                        showWinMessage(true);
+                    }
+                } else {
+                    console.log(`[${new Date().toISOString()}] Ignoring out-of-order message for tile ${data.index}`);
+                }
+                break;
+            case MessageType.PLAYER_WON:
+                console.log(`[${new Date().toISOString()}] Player ${data.name} has won the game!`);
+                showWinMessage(false, data.name);
+                break;
+            case MessageType.CLIENT_LIST:
+                console.log(`[${new Date().toISOString()}] Updating player list. Current players:`, data.clients);
+                updatePlayerList(data.clients);
+                break;
+        }
+    };
+    
+    ws.onclose = function() {
+        console.log(`[${new Date().toISOString()}] Disconnected from server. Player: ${playerName}`);
+        // Try to reconnect after 5 seconds
+        setTimeout(connect, 5000);
+    };
+
+    ws.onerror = function(error) {
+        console.error(`[${new Date().toISOString()}] WebSocket error for player ${playerName}:`, error);
+        // Clear any pending clicks on error
+        pendingClicks.clear();
+        updateBoardDisplay();
+    };
+}
+
+function updatePlayerList(clients) {
+    console.log('Updating player list with:', clients);
+    const playerList = document.getElementById('playerList');
+    playerList.innerHTML = '';
+
+    // Convert clients object to array and sort by win progress
+    const clientEntries = Object.entries(clients).map(([name, board]) => ({
+        name,
+        board,
+        progress: calculateWinProgress(board)
+    })).sort((a, b) => b.progress - a.progress);
+
+    // Create list items in sorted order
+    clientEntries.forEach(({ name, board, progress }) => {
+        const li = document.createElement('li');
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = name;
+        nameSpan.className = 'player-name';
+        li.appendChild(nameSpan);
+
+        const progressSpan = document.createElement('span');
+        progressSpan.textContent = `${progress}/4`;
+        progressSpan.className = 'tile-count';
+        li.appendChild(progressSpan);
+
+        const miniBoard = document.createElement('div');
+        miniBoard.className = 'mini-board';
+        for (let i = 0; i < 16; i++) {
+            const tile = document.createElement('span');
+            tile.className = 'mini-tile' + (board[i] ? ' marked' : '');
+            miniBoard.appendChild(tile);
+        }
+        li.appendChild(miniBoard);
+        playerList.appendChild(li);
+    });
+}
+
+function calculateWinProgress(board) {
+    let maxMarkedInLine = 0;
+
+    // Check rows
+    for (let i = 0; i < 16; i += 4) {
+        let markedInRow = 0;
+        for (let j = 0; j < 4; j++) {
+            if (board[i + j]) markedInRow++;
+        }
+        maxMarkedInLine = Math.max(maxMarkedInLine, markedInRow);
+    }
+
+    // Check columns
+    for (let i = 0; i < 4; i++) {
+        let markedInCol = 0;
+        for (let j = 0; j < 16; j += 4) {
+            if (board[i + j]) markedInCol++;
+        }
+        maxMarkedInLine = Math.max(maxMarkedInLine, markedInCol);
+    }
+
+    // Check diagonals
+    let markedInDiag1 = 0;
+    let markedInDiag2 = 0;
+    for (let i = 0; i < 4; i++) {
+        if (board[i * 4 + i]) markedInDiag1++;
+        if (board[i * 4 + (3 - i)]) markedInDiag2++;
+    }
+    maxMarkedInLine = Math.max(maxMarkedInLine, markedInDiag1, markedInDiag2);
+
+    return maxMarkedInLine;
+}
+
+function showWinMessage(isWinner, winnerName) {
+    const winMessage = document.getElementById('winMessage');
+    const winText = document.getElementById('winText');
+    winText.textContent = isWinner ? 'You won!' : `${winnerName} won!`;
+    winMessage.classList.add('show');
+}
+
+function resetGame() {
+    board = Array(16).fill(false);
+    updateBoardDisplay();
+    document.getElementById('winMessage').classList.remove('show');
+}
+
+function updateBoardDisplay() {
+    console.log('Updating board display. Board state:', board);
+    for (let i = 0; i < board.length; i++) {
+        const tile = document.getElementById(`tile-${i}`);
+        if (tile) {
+            const wasMarked = tile.classList.contains('marked');
+            const shouldBeMarked = board[i];
+            const isPending = pendingClicks.has(i);
+            console.log(`Tile ${i}: wasMarked=${wasMarked}, shouldBeMarked=${shouldBeMarked}, isPending=${isPending}`);
+            
+            // Remove all states first
+            tile.classList.remove('marked', 'loading');
+            
+            // Apply appropriate state
+            if (isPending) {
+                tile.classList.add('loading');
+            } else if (shouldBeMarked) {
+                tile.classList.add('marked');
+            }
+            
+            tile.textContent = words[i] || `Tile ${i + 1}`;
+        }
+    }
+}
+
+function markTile(index) {
+    console.log('Marking tile:', index, 'Current board state:', board);
+    
+    // If already pending or WebSocket not ready, ignore click
+    if (pendingClicks.has(index) || !ws || ws.readyState !== WebSocket.OPEN) {
+        console.log('Ignoring click - tile pending or WebSocket not ready');
+        return;
+    }
+
+    // Generate sequence number for this click
+    const sequence = ++sequenceNumber;
+
+    // Add to pending clicks and update UI
+    pendingClicks.set(index, { sequence });
+    updateBoardDisplay();
+
+    try {
+        ws.send(JSON.stringify({
+            type: MessageType.MARK_TILE,
+            index: index,
+            sequence: sequence
+        }));
+    } catch (error) {
+        console.error('Failed to send WebSocket message:', error);
+        // Remove from pending clicks on error
+        pendingClicks.delete(index);
+        updateBoardDisplay();
+    }
+}
+
+// Initialize the board
+function initBoard() {
+    const boardElement = document.getElementById('bingoBoard');
+    // Create 16 tiles
+    for (let i = 0; i < 16; i++) {
+        const tile = document.createElement('div');
+        tile.className = 'bingo-tile';
+        tile.id = `tile-${i}`;
+        tile.textContent = `Tile ${i + 1}`;
+        tile.onclick = () => markTile(i);
+        boardElement.appendChild(tile);
+    }
+}
+
+function updateName() {
+    const namePrompt = document.getElementById('namePrompt');
+    const nameInput = document.getElementById('nameInput');
+    nameInput.value = playerName;
+    namePrompt.classList.remove('hidden');
+} 
