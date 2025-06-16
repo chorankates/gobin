@@ -4,9 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Corporate Bingo</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/styles.css" id="theme-style">
+    <style>
+        .theme-switcher {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        .theme-switcher select {
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            background-color: white;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
+    <div class="theme-switcher">
+        <select id="themeSelect" onchange="changeTheme(this.value)">
+            <option value="styles.css">Default</option>
+            <option value="styles-dark.css">Dark</option>
+            <option value="styles-techno.css">Techno</option>
+            <option value="styles-clean.css">Clean</option>
+            <option value="styles-nature.css">Nature</option>
+        </select>
+    </div>
     <div class="name-prompt" id="namePrompt">
         <h2>Enter Your Name</h2>
         <input type="text" id="nameInput" placeholder="Your name" maxlength="20" onkeypress="handleNameKeyPress(event)">
@@ -41,6 +65,11 @@
         let pendingClicks = new Map();
         let sequenceNumber = 0;
 
+        function changeTheme(themeFile) {
+            document.getElementById('theme-style').href = 'css/' + themeFile;
+            localStorage.setItem('preferred-theme', themeFile);
+        }
+
         function getNameFromCookie() {
             const cookies = document.cookie.split(';');
             for (let cookie of cookies) {
@@ -72,8 +101,13 @@
             }
         }
 
-        // Check for existing name when page loads
         window.onload = function() {
+            const savedTheme = localStorage.getItem('preferred-theme');
+            if (savedTheme) {
+                document.getElementById('themeSelect').value = savedTheme;
+                changeTheme(savedTheme);
+            }
+            
             playerName = getNameFromCookie();
             if (playerName) {
                 document.getElementById('namePrompt').classList.add('hidden');

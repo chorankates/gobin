@@ -1,0 +1,186 @@
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: 'Courier New', monospace;
+    background-color: #000;
+    color: #0ff;
+    text-shadow: 0 0 5px #0ff;
+}
+.game-container {
+    display: flex;
+    gap: 20px;
+    max-width: 1200px;
+    margin: 20px auto;
+}
+.bingo-board {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+    width: 600px;
+}
+.bingo-tile {
+    aspect-ratio: 1;
+    border: 1px solid #0ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 10px;
+    cursor: pointer;
+    background-color: #000;
+    font-size: 0.9em;
+    word-wrap: break-word;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 5px #0ff;
+}
+.bingo-tile.marked {
+    background-color: #f0f;
+    border-color: #f0f;
+    box-shadow: 0 0 10px #f0f;
+}
+.bingo-tile.loading {
+    background-color: #333;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+.win-message {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.9);
+    color: #0ff;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    display: none;
+    z-index: 1000;
+    border: 2px solid #0ff;
+    box-shadow: 0 0 20px #0ff;
+}
+.win-message.show {
+    display: block;
+}
+.win-message h2 {
+    margin: 0 0 10px 0;
+    color: #f0f;
+    text-shadow: 0 0 10px #f0f;
+}
+.win-message button {
+    background-color: #000;
+    border: 1px solid #0ff;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 10px;
+    color: #0ff;
+    text-shadow: 0 0 5px #0ff;
+    box-shadow: 0 0 10px #0ff;
+}
+.win-message button:hover {
+    background-color: #0ff;
+    color: #000;
+}
+.player-info {
+    background-color: #000;
+    padding: 20px;
+    border-radius: 10px;
+    min-width: 200px;
+    border: 1px solid #0ff;
+    box-shadow: 0 0 10px #0ff;
+}
+.player-info h2 {
+    margin-top: 0;
+    color: #0ff;
+    text-shadow: 0 0 5px #0ff;
+}
+.player-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.player-list li {
+    padding: 5px 0;
+    border-bottom: 1px solid #0ff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.player-list li:last-child {
+    border-bottom: none;
+}
+.player-name {
+    font-weight: bold;
+    color: #0ff;
+    text-shadow: 0 0 5px #0ff;
+}
+.tile-count {
+    background-color: #f0f;
+    color: #000;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.9em;
+    box-shadow: 0 0 10px #f0f;
+}
+.name-prompt {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #000;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px #0ff;
+    z-index: 1000;
+    text-align: center;
+    border: 2px solid #0ff;
+}
+.name-prompt input {
+    padding: 8px;
+    margin: 10px 0;
+    border: 1px solid #0ff;
+    border-radius: 4px;
+    width: 200px;
+    background-color: #000;
+    color: #0ff;
+    box-shadow: 0 0 5px #0ff;
+}
+.name-prompt button {
+    background-color: #000;
+    border: 1px solid #0ff;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #0ff;
+    text-shadow: 0 0 5px #0ff;
+    box-shadow: 0 0 10px #0ff;
+}
+.name-prompt button:hover {
+    background-color: #0ff;
+    color: #000;
+}
+.name-prompt.hidden {
+    display: none;
+}
+.mini-board {
+    display: grid;
+    grid-template-columns: repeat(4, 12px);
+    grid-gap: 2px;
+    margin-left: 10px;
+}
+.mini-tile {
+    width: 12px;
+    height: 12px;
+    background: #000;
+    border: 1px solid #0ff;
+    display: inline-block;
+    border-radius: 2px;
+    box-shadow: 0 0 3px #0ff;
+}
+.mini-tile.marked {
+    background: #f0f;
+    border: 1px solid #f0f;
+    box-shadow: 0 0 5px #f0f;
+} 

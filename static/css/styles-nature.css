@@ -1,0 +1,179 @@
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: 'Georgia', serif;
+    background-color: #f4f1ea;
+    color: #2c3e50;
+}
+.game-container {
+    display: flex;
+    gap: 20px;
+    max-width: 1200px;
+    margin: 20px auto;
+}
+.bingo-board {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+    width: 600px;
+}
+.bingo-tile {
+    aspect-ratio: 1;
+    border: 1px solid #8d6e63;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 10px;
+    cursor: pointer;
+    background-color: #fff;
+    font-size: 0.9em;
+    word-wrap: break-word;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border-radius: 8px;
+}
+.bingo-tile.marked {
+    background-color: #a5d6a7;
+    border-color: #66bb6a;
+}
+.bingo-tile.loading {
+    background-color: #e0e0e0;
+    cursor: not-allowed;
+}
+.win-message {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #fff;
+    color: #2c3e50;
+    padding: 30px;
+    border-radius: 15px;
+    text-align: center;
+    display: none;
+    z-index: 1000;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    border: 2px solid #8d6e63;
+}
+.win-message.show {
+    display: block;
+}
+.win-message h2 {
+    margin: 0 0 10px 0;
+    color: #2e7d32;
+}
+.win-message button {
+    background-color: #8d6e63;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 25px;
+    cursor: pointer;
+    margin-top: 10px;
+    color: white;
+    font-family: 'Georgia', serif;
+    transition: background-color 0.3s ease;
+}
+.win-message button:hover {
+    background-color: #6d4c41;
+}
+.player-info {
+    background-color: #fff;
+    padding: 24px;
+    border-radius: 15px;
+    min-width: 200px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    border: 1px solid #8d6e63;
+}
+.player-info h2 {
+    margin-top: 0;
+    color: #2c3e50;
+    font-family: 'Georgia', serif;
+}
+.player-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.player-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #d7ccc8;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.player-list li:last-child {
+    border-bottom: none;
+}
+.player-name {
+    font-weight: bold;
+    color: #5d4037;
+}
+.tile-count {
+    background-color: #a5d6a7;
+    color: #2e7d32;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 0.9em;
+}
+.name-prompt {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    z-index: 1000;
+    text-align: center;
+    border: 2px solid #8d6e63;
+}
+.name-prompt input {
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #8d6e63;
+    border-radius: 8px;
+    width: 200px;
+    font-family: 'Georgia', serif;
+    transition: border-color 0.3s ease;
+}
+.name-prompt input:focus {
+    outline: none;
+    border-color: #5d4037;
+}
+.name-prompt button {
+    background-color: #8d6e63;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 25px;
+    cursor: pointer;
+    color: white;
+    font-family: 'Georgia', serif;
+    transition: background-color 0.3s ease;
+}
+.name-prompt button:hover {
+    background-color: #6d4c41;
+}
+.name-prompt.hidden {
+    display: none;
+}
+.mini-board {
+    display: grid;
+    grid-template-columns: repeat(4, 12px);
+    grid-gap: 2px;
+    margin-left: 10px;
+}
+.mini-tile {
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    border: 1px solid #8d6e63;
+    display: inline-block;
+    border-radius: 4px;
+}
+.mini-tile.marked {
+    background: #a5d6a7;
+    border: 1px solid #66bb6a;
+} 
