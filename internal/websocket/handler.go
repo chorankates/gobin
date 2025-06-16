@@ -52,8 +52,8 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	// Create new client with temporary name
 	client := &game.Client{
 		ID:    fmt.Sprintf("client-%d", len(h.game.GetClients())+1),
-		Name:  "Anonymous", // Will be updated when client sends their name
-		Board: make([]bool, 16),
+		Name:  "Anonymous",        // Will be updated when client sends their name
+		Board: make([]string, 16), // Initialize with empty strings
 		Conn:  conn,
 		Send:  make(chan []byte, 256),
 	}
@@ -128,7 +128,21 @@ func (h *Handler) readPump(client *game.Client) {
 		case TypeMarkTile:
 			if msg.Index >= 0 && msg.Index < 16 {
 				// Update this client's board
-				client.Board[msg.Index] = !client.Board[msg.Index]
+				if client.Board[msg.Index] == "" {
+					words := h.game.GetWords()
+					if len(words) > msg.Index {
+						client.Board[msg.Index] = words[msg.Index] // Mark with the word
+					} else {
+						h.logger.Error("Word index out of range",
+							zap.String("clientName", client.Name),
+							zap.Int("index", msg.Index),
+							zap.Int("wordCount", len(words)),
+						)
+						continue
+					}
+				} else {
+					client.Board[msg.Index] = "" // Unmark by setting to empty string
+				}
 				h.logger.Info("Client marked tile",
 					zap.String("clientName", client.Name),
 					zap.Int("tileIndex", msg.Index),

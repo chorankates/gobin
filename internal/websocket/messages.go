@@ -14,12 +14,12 @@ const (
 )
 
 type Message struct {
-	Type     string            `json:"type"`
-	Name     string            `json:"name,omitempty"`
-	Index    int               `json:"index,omitempty"`
-	Board    []bool            `json:"board,omitempty"`
-	Words    []string          `json:"words,omitempty"`
-	Win      bool              `json:"win,omitempty"`
-	Sequence int               `json:"sequence,omitempty"`
-	Clients  map[string][]bool `json:"clients,omitempty"`
+	Type     string              `json:"type"`
+	Name     string              `json:"name,omitempty"`
+	Index    int                 `json:"index,omitempty"`
+	Board    []string            `json:"board,omitempty"`
+	Words    []string            `json:"words,omitempty"`
+	Win      bool                `json:"win,omitempty"`
+	Sequence int                 `json:"sequence,omitempty"`
+	Clients  map[string][]string `json:"clients,omitempty"`
 }

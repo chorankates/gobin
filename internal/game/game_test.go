@@ -8,51 +8,56 @@ import (
 func TestCheckWin(t *testing.T) {
 	tests := []struct {
 		name     string
-		board    []bool
+		board    []string
 		expected bool
 	}{
 		{
-			name:     "No win",
-			board:    make([]bool, 16),
+			name: "No win",
+			board: []string{
+				"", "", "", "",
+				"", "", "", "",
+				"", "", "", "",
+				"", "", "", "",
+			},
 			expected: false,
 		},
 		{
 			name: "Row win",
-			board: []bool{
-				true, true, true, true,
-				false, false, false, false,
-				false, false, false, false,
-				false, false, false, false,
+			board: []string{
+				"word1", "word2", "word3", "word4",
+				"", "", "", "",
+				"", "", "", "",
+				"", "", "", "",
 			},
 			expected: true,
 		},
 		{
 			name: "Column win",
-			board: []bool{
-				true, false, false, false,
-				true, false, false, false,
-				true, false, false, false,
-				true, false, false, false,
+			board: []string{
+				"word1", "", "", "",
+				"word2", "", "", "",
+				"word3", "", "", "",
+				"word4", "", "", "",
 			},
 			expected: true,
 		},
 		{
-			name: "Diagonal win (top-left to bottom-right)",
-			board: []bool{
-				true, false, false, false,
-				false, true, false, false,
-				false, false, true, false,
-				false, false, false, true,
+			name: "Diagonal win 1",
+			board: []string{
+				"word1", "", "", "",
+				"", "word2", "", "",
+				"", "", "word3", "",
+				"", "", "", "word4",
 			},
 			expected: true,
 		},
 		{
-			name: "Diagonal win (top-right to bottom-left)",
-			board: []bool{
-				false, false, false, true,
-				false, false, true, false,
-				false, true, false, false,
-				true, false, false, false,
+			name: "Diagonal win 2",
+			board: []string{
+				"", "", "", "word1",
+				"", "", "word2", "",
+				"", "word3", "", "",
+				"word4", "", "", "",
 			},
 			expected: true,
 		},
@@ -70,70 +75,204 @@ func TestCheckWin(t *testing.T) {
 func TestCountMarkedTiles(t *testing.T) {
 	tests := []struct {
 		name     string
-		board    []bool
+		board    []string
 		expected int
 	}{
 		{
-			name:     "No marked tiles",
-			board:    make([]bool, 16),
+			name: "Empty board",
+			board: []string{
+				"", "", "", "",
+				"", "", "", "",
+				"", "", "", "",
+				"", "", "", "",
+			},
 			expected: 0,
 		},
 		{
-			name: "All marked tiles",
-			board: []bool{
-				true, true, true, true,
-				true, true, true, true,
-				true, true, true, true,
-				true, true, true, true,
+			name: "Partially filled board",
+			board: []string{
+				"word1", "word2", "", "",
+				"", "word3", "", "",
+				"", "", "word4", "",
+				"", "", "", "",
 			},
-			expected: 16,
+			expected: 4,
 		},
 		{
-			name: "Some marked tiles",
-			board: []bool{
-				true, false, true, false,
-				false, true, false, true,
-				true, false, true, false,
-				false, true, false, true,
+			name: "Full board",
+			board: []string{
+				"word1", "word2", "word3", "word4",
+				"word5", "word6", "word7", "word8",
+				"word9", "word10", "word11", "word12",
+				"word13", "word14", "word15", "word16",
 			},
-			expected: 8,
+			expected: 16,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := CountMarkedTiles(tt.board); got != tt.expected {
-				t.Errorf("countMarkedTiles() = %v, want %v", got, tt.expected)
+				t.Errorf("CountMarkedTiles() = %v, want %v", got, tt.expected)
 			}
 		})
+	}
+}
+
+func TestCalculateWinProgress(t *testing.T) {
+	tests := []struct {
+		name     string
+		board    []string
+		expected int
+	}{
+		{
+			name: "Empty board",
+			board: []string{
+				"", "", "", "",
+				"", "", "", "",
+				"", "", "", "",
+				"", "", "", "",
+			},
+			expected: 0,
+		},
+		{
+			name: "Row with 3 marked",
+			board: []string{
+				"word1", "word2", "word3", "",
+				"", "", "", "",
+				"", "", "", "",
+				"", "", "", "",
+			},
+			expected: 3,
+		},
+		{
+			name: "Column with 3 marked",
+			board: []string{
+				"word1", "", "", "",
+				"word2", "", "", "",
+				"word3", "", "", "",
+				"", "", "", "",
+			},
+			expected: 3,
+		},
+		{
+			name: "Diagonal with 3 marked",
+			board: []string{
+				"word1", "", "", "",
+				"", "word2", "", "",
+				"", "", "word3", "",
+				"", "", "", "",
+			},
+			expected: 3,
+		},
+		{
+			name: "Multiple lines with different progress",
+			board: []string{
+				"word1", "word2", "word3", "",
+				"word4", "", "", "",
+				"word5", "", "", "",
+				"word6", "", "", "",
+			},
+			expected: 4,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := CalculateWinProgress(tt.board); got != tt.expected {
+				t.Errorf("CalculateWinProgress() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGetClientBoards(t *testing.T) {
+	game := New()
+
+	// Create test clients with different board states
+	client1 := &Client{
+		Name: "Player1",
+		Board: []string{
+			"word1", "word2", "word3", "",
+			"", "", "", "",
+			"", "", "", "",
+			"", "", "", "",
+		},
+	}
+
+	client2 := &Client{
+		Name: "Player2",
+		Board: []string{
+			"word1", "", "", "",
+			"word2", "", "", "",
+			"word3", "", "", "",
+			"", "", "", "",
+		},
+	}
+
+	client3 := &Client{
+		Name: "Player3",
+		Board: []string{
+			"", "", "", "",
+			"", "", "", "",
+			"", "", "", "",
+			"", "", "", "",
+		},
+	}
+
+	game.AddClient(client1)
+	game.AddClient(client2)
+	game.AddClient(client3)
+
+	boards := game.GetClientBoards()
+
+	// Verify the boards are returned in the correct order (by progress)
+	expectedOrder := []string{"Player1", "Player2", "Player3"}
+	i := 0
+	for name := range boards {
+		if name != expectedOrder[i] {
+			t.Errorf("Expected client %s at position %d, got %s", expectedOrder[i], i, name)
+		}
+		i++
+	}
+
+	// Verify the board contents
+	if len(boards["Player1"]) != 16 || boards["Player1"][0] != "word1" {
+		t.Error("Player1's board not correctly stored")
+	}
+	if len(boards["Player2"]) != 16 || boards["Player2"][0] != "word1" {
+		t.Error("Player2's board not correctly stored")
+	}
+	if len(boards["Player3"]) != 16 || boards["Player3"][0] != "" {
+		t.Error("Player3's board not correctly stored")
 	}
 }
 
 func TestGameClientManagement(t *testing.T) {
 	game := New()
 
-	// Test adding a client
+	// Create test client
 	client := &Client{
-		ID:    "test-client",
-		Name:  "Test Player",
-		Board: make([]bool, 16),
+		ID:   "test-client",
+		Name: "Test Player",
+		Board: []string{
+			"", "", "", "",
+			"", "", "", "",
+			"", "", "", "",
+			"", "", "", "",
+		},
 	}
+
+	// Test adding client
 	game.AddClient(client)
-
-	// Test getting clients
-	clients := game.GetClients()
-	if len(clients) != 1 {
-		t.Errorf("Expected 1 client, got %d", len(clients))
-	}
-	if count, exists := clients["Test Player"]; !exists || count != 0 {
-		t.Errorf("Expected client 'Test Player' with 0 marked tiles, got %v", clients)
+	if len(game.GetAllClients()) != 1 {
+		t.Error("Expected 1 client after adding")
 	}
 
-	// Test removing a client
+	// Test removing client
 	game.RemoveClient(client)
-	clients = game.GetClients()
-	if len(clients) != 0 {
-		t.Errorf("Expected 0 clients after removal, got %d", len(clients))
+	if len(game.GetAllClients()) != 0 {
+		t.Error("Expected 0 clients after removing")
 	}
 }
 

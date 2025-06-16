@@ -22,7 +22,7 @@ type Game struct {
 type Client struct {
 	ID    string
 	Name  string
-	Board []bool
+	Board []string
 	Conn  *websocket.Conn
 	Send  chan []byte
 }
@@ -83,26 +83,26 @@ func (g *Game) GetClients() map[string]int {
 }
 
 // CheckWin checks if a board has a winning pattern
-func CheckWin(board []bool) bool {
+func CheckWin(board []string) bool {
 	// Check rows
 	for i := 0; i < 16; i += 4 {
-		if board[i] && board[i+1] && board[i+2] && board[i+3] {
+		if board[i] != "" && board[i+1] != "" && board[i+2] != "" && board[i+3] != "" {
 			return true
 		}
 	}
 
 	// Check columns
 	for i := 0; i < 4; i++ {
-		if board[i] && board[i+4] && board[i+8] && board[i+12] {
+		if board[i] != "" && board[i+4] != "" && board[i+8] != "" && board[i+12] != "" {
 			return true
 		}
 	}
 
 	// Check diagonals
-	if board[0] && board[5] && board[10] && board[15] {
+	if board[0] != "" && board[5] != "" && board[10] != "" && board[15] != "" {
 		return true
 	}
-	if board[3] && board[6] && board[9] && board[12] {
+	if board[3] != "" && board[6] != "" && board[9] != "" && board[12] != "" {
 		return true
 	}
 
@@ -122,10 +122,10 @@ func (g *Game) GetAllClients() []*Client {
 }
 
 // CountMarkedTiles returns the number of marked tiles on a board
-func CountMarkedTiles(board []bool) int {
+func CountMarkedTiles(board []string) int {
 	count := 0
-	for _, marked := range board {
-		if marked {
+	for _, value := range board {
+		if value != "" {
 			count++
 		}
 	}
@@ -134,14 +134,14 @@ func CountMarkedTiles(board []bool) int {
 
 // CalculateWinProgress returns a score indicating how close a board is to winning
 // Higher score means closer to winning
-func CalculateWinProgress(board []bool) int {
+func CalculateWinProgress(board []string) int {
 	maxMarkedInLine := 0
 
 	// Check rows
 	for i := 0; i < 16; i += 4 {
 		markedInRow := 0
 		for j := 0; j < 4; j++ {
-			if board[i+j] {
+			if board[i+j] != "" {
 				markedInRow++
 			}
 		}
@@ -154,7 +154,7 @@ func CalculateWinProgress(board []bool) int {
 	for i := 0; i < 4; i++ {
 		markedInCol := 0
 		for j := 0; j < 16; j += 4 {
-			if board[i+j] {
+			if board[i+j] != "" {
 				markedInCol++
 			}
 		}
@@ -167,10 +167,10 @@ func CalculateWinProgress(board []bool) int {
 	markedInDiag1 := 0
 	markedInDiag2 := 0
 	for i := 0; i < 4; i++ {
-		if board[i*4+i] {
+		if board[i*4+i] != "" {
 			markedInDiag1++
 		}
-		if board[i*4+(3-i)] {
+		if board[i*4+(3-i)] != "" {
 			markedInDiag2++
 		}
 	}
@@ -185,14 +185,14 @@ func CalculateWinProgress(board []bool) int {
 }
 
 // GetClientBoards returns a map of client names to their board states, sorted by win progress
-func (g *Game) GetClientBoards() map[string][]bool {
+func (g *Game) GetClientBoards() map[string][]string {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 
 	// Create a slice of clients with their win progress
 	type clientProgress struct {
 		name     string
-		board    []bool
+		board    []string
 		progress int
 	}
 	clients := make([]clientProgress, 0, len(g.clients))
@@ -204,15 +204,25 @@ func (g *Game) GetClientBoards() map[string][]bool {
 		})
 	}
 
-	// Sort clients by win progress (descending)
+	// Sort by progress (descending)
 	sort.Slice(clients, func(i, j int) bool {
 		return clients[i].progress > clients[j].progress
 	})
 
-	// Create the final map with sorted clients
-	clientBoards := make(map[string][]bool)
+	// Create the result map
+	result := make(map[string][]string)
 	for _, client := range clients {
-		clientBoards[client.name] = client.board
+		result[client.name] = client.board
 	}
-	return clientBoards
+	return result
+}
+
+// GetWords returns a copy of the word set
+func (g *Game) GetWords() []string {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	words := make([]string, len(g.words))
+	copy(words, g.words)
+	return words
 }
