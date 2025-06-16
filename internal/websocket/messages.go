@@ -10,4 +10,5 @@ const (
 
 	// Client to server messages
 	TypeMarkTile = "mark_tile" // Request to mark/unmark a tile
+	TypeSetName  = "set_name"  // Set player name
 )

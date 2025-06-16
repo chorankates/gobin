@@ -42,13 +42,6 @@ func (g *Game) LoadWordSet(path string) error {
 	return json.Unmarshal(data, &g.words)
 }
 
-// GenerateName creates a random name for a client
-func GenerateName() string {
-	adjectives := []string{"Happy", "Clever", "Swift", "Brave", "Witty", "Calm", "Eager", "Fierce", "Gentle", "Jolly"}
-	nouns := []string{"Panda", "Tiger", "Eagle", "Dolphin", "Fox", "Lion", "Bear", "Wolf", "Hawk", "Owl"}
-	return fmt.Sprintf("%s %s", adjectives[rand.Intn(len(adjectives))], nouns[rand.Intn(len(nouns))])
-}
-
 // ShuffleWords returns a shuffled copy of the word set
 func (g *Game) ShuffleWords() []string {
 	g.mu.RLock()

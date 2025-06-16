@@ -7,5 +7,6 @@ const MessageType = {
     CLIENT_LIST: 'client_list', // List of connected clients and their tile counts
 
     // Client to server messages
-    MARK_TILE: 'mark_tile'      // Request to mark/unmark a tile
+    MARK_TILE: 'mark_tile',     // Request to mark/unmark a tile
+    SET_NAME: 'set_name'        // Set player name
 }; 

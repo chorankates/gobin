@@ -112,9 +112,46 @@
             border-radius: 10px;
             font-size: 0.9em;
         }
+        .name-prompt {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            text-align: center;
+        }
+        .name-prompt input {
+            padding: 8px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 200px;
+        }
+        .name-prompt button {
+            background-color: #90EE90;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .name-prompt button:hover {
+            background-color: #7ED321;
+        }
+        .name-prompt.hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
+    <div class="name-prompt" id="namePrompt">
+        <h2>Enter Your Name</h2>
+        <input type="text" id="nameInput" placeholder="Your name" maxlength="20" onkeypress="handleNameKeyPress(event)">
+        <button onclick="setName()">Start Playing</button>
+    </div>
     <h1>Corporate Bingo</h1>
     <div class="game-container">
         <div class="bingo-board" id="bingoBoard">
@@ -144,11 +181,59 @@
         let pendingClicks = new Map();
         let sequenceNumber = 0;
 
+        function getNameFromCookie() {
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === 'playerName') {
+                    return decodeURIComponent(value);
+                }
+            }
+            return null;
+        }
+
+        function handleNameKeyPress(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                setName();
+            }
+        }
+
+        function setName() {
+            const nameInput = document.getElementById('nameInput');
+            const name = nameInput.value.trim();
+            if (name) {
+                // Set cookie that expires in 1 year
+                const expiryDate = new Date();
+                expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+                document.cookie = `playerName=${encodeURIComponent(name)};expires=${expiryDate.toUTCString()};path=/;SameSite=Lax`;
+                document.getElementById('namePrompt').classList.add('hidden');
+                connect();
+            }
+        }
+
+        // Check for existing name when page loads
+        window.onload = function() {
+            playerName = getNameFromCookie();
+            if (playerName) {
+                document.getElementById('namePrompt').classList.add('hidden');
+                connect();
+            } else {
+                document.getElementById('namePrompt').classList.remove('hidden');
+            }
+            initBoard();
+        };
+
         function connect() {
             ws = new WebSocket('ws://' + window.location.host + '/ws');
             
             ws.onopen = function() {
                 console.log('Connected to server');
+                // Send player name to server
+                ws.send(JSON.stringify({
+                    type: MessageType.SET_NAME,
+                    name: playerName
+                }));
                 // Clear any pending clicks when reconnected
                 pendingClicks.clear();
                 updateBoardDisplay();
@@ -305,12 +390,6 @@
                 boardElement.appendChild(tile);
             }
         }
-
-        // Connect to WebSocket and initialize the board when the page loads
-        window.onload = function() {
-            connect();
-            initBoard();
-        };
     </script>
 </body>
 </html> 

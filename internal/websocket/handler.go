@@ -53,31 +53,15 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create new client
+	// Create new client with temporary name
 	client := &game.Client{
 		ID:    fmt.Sprintf("client-%d", len(h.game.GetClients())+1),
-		Name:  game.GenerateName(),
+		Name:  "Anonymous", // Will be updated when client sends their name
 		Board: make([]bool, 16),
 		Conn:  conn,
 		Send:  make(chan []byte, 256),
 	}
 	h.game.AddClient(client)
-
-	// Send initial board state
-	msg := Message{
-		Type:    TypeInitBoard,
-		Board:   client.Board,
-		Words:   h.game.ShuffleWords(),
-		Name:    client.Name,
-		Clients: h.game.GetClients(),
-	}
-	if err := conn.WriteJSON(msg); err != nil {
-		log.Printf("Failed to send initial state: %v", err)
-		return
-	}
-
-	// Broadcast updated client list
-	h.broadcastClientList()
 
 	// Start goroutines for reading and writing
 	go h.readPump(client)
@@ -107,46 +91,67 @@ func (h *Handler) readPump(client *game.Client) {
 			continue
 		}
 
-		if msg.Type == TypeMarkTile && msg.Index >= 0 && msg.Index < 16 {
-			// Update this client's board
-			client.Board[msg.Index] = !client.Board[msg.Index]
-
-			// Check for win
-			hasWon := game.CheckWin(client.Board)
-
-			// Send updated board state back to this client
-			response := Message{
-				Type:     TypeTileMarked,
-				Index:    msg.Index,
-				Board:    client.Board,
-				Win:      hasWon,
-				Sequence: msg.Sequence,
-			}
-			if responseMsg, err := json.Marshal(response); err == nil {
-				select {
-				case client.Send <- responseMsg:
-					// Message sent successfully
-				default:
-					// Channel is full, log error and close connection
-					log.Printf("Failed to send response to client %s - channel full", client.Name)
-					client.Conn.Close()
-					return
+		switch msg.Type {
+		case TypeSetName:
+			if msg.Name != "" {
+				client.Name = msg.Name
+				// Send initial board state after name is set
+				response := Message{
+					Type:    TypeInitBoard,
+					Board:   client.Board,
+					Words:   h.game.ShuffleWords(),
+					Name:    client.Name,
+					Clients: h.game.GetClients(),
 				}
+				if responseMsg, err := json.Marshal(response); err == nil {
+					client.Send <- responseMsg
+				}
+				// Broadcast updated client list
+				h.broadcastClientList()
 			}
 
-			// Broadcast updated client list with new marked count
-			h.broadcastClientList()
+		case TypeMarkTile:
+			if msg.Index >= 0 && msg.Index < 16 {
+				// Update this client's board
+				client.Board[msg.Index] = !client.Board[msg.Index]
 
-			// If there's a win, notify all other clients
-			if hasWon {
-				winMsg := Message{
-					Type: TypePlayerWon,
-					Name: client.Name,
+				// Check for win
+				hasWon := game.CheckWin(client.Board)
+
+				// Send updated board state back to this client
+				response := Message{
+					Type:     TypeTileMarked,
+					Index:    msg.Index,
+					Board:    client.Board,
+					Win:      hasWon,
+					Sequence: msg.Sequence,
 				}
-				if winResponse, err := json.Marshal(winMsg); err == nil {
-					for _, otherClient := range h.game.GetAllClients() {
-						if otherClient != client {
-							otherClient.Send <- winResponse
+				if responseMsg, err := json.Marshal(response); err == nil {
+					select {
+					case client.Send <- responseMsg:
+						// Message sent successfully
+					default:
+						// Channel is full, log error and close connection
+						log.Printf("Failed to send response to client %s - channel full", client.Name)
+						client.Conn.Close()
+						return
+					}
+				}
+
+				// Broadcast updated client list with new marked count
+				h.broadcastClientList()
+
+				// If there's a win, notify all other clients
+				if hasWon {
+					winMsg := Message{
+						Type: TypePlayerWon,
+						Name: client.Name,
+					}
+					if winResponse, err := json.Marshal(winMsg); err == nil {
+						for _, otherClient := range h.game.GetAllClients() {
+							if otherClient != client {
+								otherClient.Send <- winResponse
+							}
 						}
 					}
 				}
