@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Corporate Bingo</title>
+    <title>(go)bin[go]</title>
     <link rel="stylesheet" href="css/styles.css" id="theme-style">
     <style>
         .theme-switcher {
@@ -36,28 +36,28 @@
 <body>
     <div class="theme-switcher">
         <select id="themeSelect" onchange="changeTheme(this.value)">
-            <option value="styles.css">Default</option>
-            <option value="styles-dark.css">Dark</option>
-            <option value="styles-techno.css">Techno</option>
-            <option value="styles-clean.css">Clean</option>
-            <option value="styles-nature.css">Nature</option>
+            <option value="styles.css">default</option>
+            <option value="styles-dark.css">dark</option>
+            <option value="styles-techno.css">techno</option>
+            <option value="styles-clean.css">clean</option>
+            <option value="styles-nature.css">nature</option>
         </select>
     </div>
     <div class="name-prompt" id="namePrompt">
-        <h2>Enter Your Name</h2>
+        <h2>name</h2>
         <input type="text" id="nameInput" placeholder="Your name" maxlength="20" onkeypress="handleNameKeyPress(event)">
-        <button onclick="setName()">Start Playing</button>
+        <button onclick="setName()">start</button>
     </div>
-    <h1>Corporate Bingo</h1>
+    <h1>corporate.json</h1>
     <div class="game-container">
         <div class="bingo-board" id="bingoBoard">
             <!-- Tiles will be added dynamically -->
         </div>
         <div class="player-info">
-            <h2>Players</h2>
+            <h2>players</h2>
             <div class="player-name" id="playerName"></div>
             <button onclick="updateName()" class="update-name-btn">✏️</button>
-            <h3>Connected Players</h3>
+            <h3>active</h3>
             <ul class="player-list" id="playerList">
                 <!-- Player list will be added dynamically -->
             </ul>
