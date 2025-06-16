@@ -284,3 +284,41 @@ func TestClientDisconnect(t *testing.T) {
 		t.Errorf("Expected 0 clients after disconnect, got %d", len(clients))
 	}
 }
+
+func TestBroadcastClientList_RemovesFullChannelClient(t *testing.T) {
+	g, h, _ := setupTestServer(t)
+
+	// Create a fake client with a full channel
+	client := &game.Client{
+		ID:    "test-client",
+		Name:  "FullChannel",
+		Board: make([]bool, 16),
+		Send:  make(chan []byte, 1), // Small buffer
+	}
+	// Fill the channel to simulate a full channel
+	client.Send <- []byte("dummy")
+
+	// Add client to the game
+	g.AddClient(client)
+
+	// Add a normal client
+	normalClient := &game.Client{
+		ID:    "test-client2",
+		Name:  "Normal",
+		Board: make([]bool, 16),
+		Send:  make(chan []byte, 1),
+	}
+	g.AddClient(normalClient)
+
+	// Call broadcastClientList
+	h.broadcastClientList()
+
+	// The full channel client should be removed
+	clients := g.GetClients()
+	if _, exists := clients["FullChannel"]; exists {
+		t.Errorf("Expected full channel client to be removed, but it still exists")
+	}
+	if _, exists := clients["Normal"]; !exists {
+		t.Errorf("Expected normal client to remain, but it was removed")
+	}
+}
