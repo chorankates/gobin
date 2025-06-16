@@ -26,18 +26,6 @@ type Handler struct {
 	mu   sync.RWMutex
 }
 
-// Message represents a WebSocket message
-type Message struct {
-	Type     string         `json:"type"`
-	Index    int            `json:"index,omitempty"`
-	Board    []bool         `json:"board,omitempty"`
-	Words    []string       `json:"words,omitempty"`
-	Win      bool           `json:"win,omitempty"`
-	Name     string         `json:"name,omitempty"`
-	Clients  map[string]int `json:"clients,omitempty"`
-	Sequence int            `json:"sequence,omitempty"`
-}
-
 // New creates a new WebSocket handler
 func New(g *game.Game) *Handler {
 	return &Handler{
@@ -101,7 +89,7 @@ func (h *Handler) readPump(client *game.Client) {
 					Board:   client.Board,
 					Words:   h.game.ShuffleWords(),
 					Name:    client.Name,
-					Clients: h.game.GetClients(),
+					Clients: h.game.GetClientBoards(),
 				}
 				if responseMsg, err := json.Marshal(response); err == nil {
 					client.Send <- responseMsg
@@ -194,37 +182,21 @@ func (h *Handler) writePump(client *game.Client) {
 
 // broadcastClientList sends the current client list to all connected clients
 func (h *Handler) broadcastClientList() {
-	// Create a map of client names and their marked tile counts
-	clientInfo := make(map[string]int)
-	for _, client := range h.game.GetAllClients() {
-		clientInfo[client.Name] = game.CountMarkedTiles(client.Board)
-	}
-
-	log.Printf("Broadcasting client list update. Current clients: %v", clientInfo)
-
-	// Create the message
+	clientList := h.game.GetClientBoards()
 	msg := Message{
 		Type:    TypeClientList,
-		Clients: clientInfo,
+		Clients: clientList,
 	}
-
-	// Convert to JSON
-	jsonMsg, err := json.Marshal(msg)
+	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		log.Printf("Error marshaling client list: %v", err)
 		return
 	}
-
-	// Broadcast to all clients
-	clients := h.game.GetAllClients()
-	log.Printf("Sending client list to %d connected clients", len(clients))
-	for _, client := range clients {
+	for _, client := range h.game.GetAllClients() {
 		select {
-		case client.Send <- jsonMsg:
-			log.Printf("Sent client list to client %s", client.Name)
+		case client.Send <- msgBytes:
 		default:
 			log.Printf("Failed to send client list to client %s - channel full or closed", client.Name)
-			close(client.Send)
 			h.game.RemoveClient(client)
 		}
 	}

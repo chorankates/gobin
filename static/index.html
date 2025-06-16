@@ -144,6 +144,24 @@
         .name-prompt.hidden {
             display: none;
         }
+        .mini-board {
+            display: grid;
+            grid-template-columns: repeat(4, 12px);
+            grid-gap: 2px;
+            margin-left: 10px;
+        }
+        .mini-tile {
+            width: 12px;
+            height: 12px;
+            background: #eee;
+            border: 1px solid #ccc;
+            display: inline-block;
+            border-radius: 2px;
+        }
+        .mini-tile.marked {
+            background: #90EE90;
+            border: 1px solid #7ED321;
+        }
     </style>
 </head>
 <body>
@@ -295,16 +313,21 @@
             console.log('Updating player list with:', clients);
             const playerList = document.getElementById('playerList');
             playerList.innerHTML = '';
-            Object.entries(clients).forEach(([name, count]) => {
-                console.log(`Adding player to list: ${name} with ${count} tiles`);
+            Object.entries(clients).forEach(([name, board]) => {
                 const li = document.createElement('li');
                 const nameSpan = document.createElement('span');
                 nameSpan.textContent = name;
-                const countSpan = document.createElement('span');
-                countSpan.className = 'tile-count';
-                countSpan.textContent = `${count} tiles`;
+                nameSpan.className = 'player-name';
                 li.appendChild(nameSpan);
-                li.appendChild(countSpan);
+                // Add a mini-board for each player
+                const miniBoard = document.createElement('div');
+                miniBoard.className = 'mini-board';
+                for (let i = 0; i < 16; i++) {
+                    const tile = document.createElement('span');
+                    tile.className = 'mini-tile' + (board[i] ? ' marked' : '');
+                    miniBoard.appendChild(tile);
+                }
+                li.appendChild(miniBoard);
                 playerList.appendChild(li);
             });
         }

@@ -129,3 +129,15 @@ func CountMarkedTiles(board []bool) int {
 	}
 	return count
 }
+
+// GetClientBoards returns a map of client names to their board states
+func (g *Game) GetClientBoards() map[string][]bool {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	clientBoards := make(map[string][]bool)
+	for client := range g.clients {
+		clientBoards[client.Name] = client.Board
+	}
+	return clientBoards
+}
