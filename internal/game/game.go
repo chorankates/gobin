@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"sort"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -120,6 +121,7 @@ func (g *Game) GetAllClients() []*Client {
 	return clients
 }
 
+// CountMarkedTiles returns the number of marked tiles on a board
 func CountMarkedTiles(board []bool) int {
 	count := 0
 	for _, marked := range board {
@@ -130,14 +132,87 @@ func CountMarkedTiles(board []bool) int {
 	return count
 }
 
-// GetClientBoards returns a map of client names to their board states
+// CalculateWinProgress returns a score indicating how close a board is to winning
+// Higher score means closer to winning
+func CalculateWinProgress(board []bool) int {
+	maxMarkedInLine := 0
+
+	// Check rows
+	for i := 0; i < 16; i += 4 {
+		markedInRow := 0
+		for j := 0; j < 4; j++ {
+			if board[i+j] {
+				markedInRow++
+			}
+		}
+		if markedInRow > maxMarkedInLine {
+			maxMarkedInLine = markedInRow
+		}
+	}
+
+	// Check columns
+	for i := 0; i < 4; i++ {
+		markedInCol := 0
+		for j := 0; j < 16; j += 4 {
+			if board[i+j] {
+				markedInCol++
+			}
+		}
+		if markedInCol > maxMarkedInLine {
+			maxMarkedInLine = markedInCol
+		}
+	}
+
+	// Check diagonals
+	markedInDiag1 := 0
+	markedInDiag2 := 0
+	for i := 0; i < 4; i++ {
+		if board[i*4+i] {
+			markedInDiag1++
+		}
+		if board[i*4+(3-i)] {
+			markedInDiag2++
+		}
+	}
+	if markedInDiag1 > maxMarkedInLine {
+		maxMarkedInLine = markedInDiag1
+	}
+	if markedInDiag2 > maxMarkedInLine {
+		maxMarkedInLine = markedInDiag2
+	}
+
+	return maxMarkedInLine
+}
+
+// GetClientBoards returns a map of client names to their board states, sorted by win progress
 func (g *Game) GetClientBoards() map[string][]bool {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 
-	clientBoards := make(map[string][]bool)
+	// Create a slice of clients with their win progress
+	type clientProgress struct {
+		name     string
+		board    []bool
+		progress int
+	}
+	clients := make([]clientProgress, 0, len(g.clients))
 	for client := range g.clients {
-		clientBoards[client.Name] = client.Board
+		clients = append(clients, clientProgress{
+			name:     client.Name,
+			board:    client.Board,
+			progress: CalculateWinProgress(client.Board),
+		})
+	}
+
+	// Sort clients by win progress (descending)
+	sort.Slice(clients, func(i, j int) bool {
+		return clients[i].progress > clients[j].progress
+	})
+
+	// Create the final map with sorted clients
+	clientBoards := make(map[string][]bool)
+	for _, client := range clients {
+		clientBoards[client.name] = client.board
 	}
 	return clientBoards
 }

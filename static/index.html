@@ -190,13 +190,27 @@
             console.log('Updating player list with:', clients);
             const playerList = document.getElementById('playerList');
             playerList.innerHTML = '';
-            Object.entries(clients).forEach(([name, board]) => {
+
+            // Convert clients object to array and sort by win progress
+            const clientEntries = Object.entries(clients).map(([name, board]) => ({
+                name,
+                board,
+                progress: calculateWinProgress(board)
+            })).sort((a, b) => b.progress - a.progress);
+
+            // Create list items in sorted order
+            clientEntries.forEach(({ name, board, progress }) => {
                 const li = document.createElement('li');
                 const nameSpan = document.createElement('span');
                 nameSpan.textContent = name;
                 nameSpan.className = 'player-name';
                 li.appendChild(nameSpan);
-                // Add a mini-board for each player
+
+                const progressSpan = document.createElement('span');
+                progressSpan.textContent = `${progress}/4`;
+                progressSpan.className = 'tile-count';
+                li.appendChild(progressSpan);
+
                 const miniBoard = document.createElement('div');
                 miniBoard.className = 'mini-board';
                 for (let i = 0; i < 16; i++) {
@@ -207,6 +221,39 @@
                 li.appendChild(miniBoard);
                 playerList.appendChild(li);
             });
+        }
+
+        function calculateWinProgress(board) {
+            let maxMarkedInLine = 0;
+
+            // Check rows
+            for (let i = 0; i < 16; i += 4) {
+                let markedInRow = 0;
+                for (let j = 0; j < 4; j++) {
+                    if (board[i + j]) markedInRow++;
+                }
+                maxMarkedInLine = Math.max(maxMarkedInLine, markedInRow);
+            }
+
+            // Check columns
+            for (let i = 0; i < 4; i++) {
+                let markedInCol = 0;
+                for (let j = 0; j < 16; j += 4) {
+                    if (board[i + j]) markedInCol++;
+                }
+                maxMarkedInLine = Math.max(maxMarkedInLine, markedInCol);
+            }
+
+            // Check diagonals
+            let markedInDiag1 = 0;
+            let markedInDiag2 = 0;
+            for (let i = 0; i < 4; i++) {
+                if (board[i * 4 + i]) markedInDiag1++;
+                if (board[i * 4 + (3 - i)]) markedInDiag2++;
+            }
+            maxMarkedInLine = Math.max(maxMarkedInLine, markedInDiag1, markedInDiag2);
+
+            return maxMarkedInLine;
         }
 
         function showWinMessage(isWinner, winnerName) {
