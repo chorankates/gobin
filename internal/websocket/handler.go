@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 
@@ -37,7 +38,7 @@ func New(g *game.Game) *Handler {
 func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("Failed to upgrade connection: %v", err)
+		log.Printf("[%s] Failed to upgrade connection: %v", time.Now().Format(time.RFC3339), err)
 		return
 	}
 
@@ -50,6 +51,7 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		Send:  make(chan []byte, 256),
 	}
 	h.game.AddClient(client)
+	log.Printf("[%s] New client connected: %s", time.Now().Format(time.RFC3339), client.ID)
 
 	// Start goroutines for reading and writing
 	go h.readPump(client)
@@ -59,6 +61,7 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 // readPump pumps messages from the WebSocket connection to the hub.
 func (h *Handler) readPump(client *game.Client) {
 	defer func() {
+		log.Printf("[%s] Client disconnected: %s (Name: %s)", time.Now().Format(time.RFC3339), client.ID, client.Name)
 		client.Conn.Close()
 		h.game.RemoveClient(client)
 		h.broadcastClientList() // Update client list when someone disconnects
@@ -68,21 +71,23 @@ func (h *Handler) readPump(client *game.Client) {
 		_, message, err := client.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("error: %v", err)
+				log.Printf("[%s] WebSocket error for client %s: %v", time.Now().Format(time.RFC3339), client.ID, err)
 			}
 			break
 		}
 
 		var msg Message
 		if err := json.Unmarshal(message, &msg); err != nil {
-			log.Printf("error unmarshaling message: %v", err)
+			log.Printf("[%s] Error unmarshaling message from client %s: %v", time.Now().Format(time.RFC3339), client.ID, err)
 			continue
 		}
 
 		switch msg.Type {
 		case TypeSetName:
 			if msg.Name != "" {
+				oldName := client.Name
 				client.Name = msg.Name
+				log.Printf("[%s] Client %s set name: %s (was: %s)", time.Now().Format(time.RFC3339), client.ID, msg.Name, oldName)
 				// Send initial board state after name is set
 				response := Message{
 					Type:    TypeInitBoard,
@@ -102,9 +107,13 @@ func (h *Handler) readPump(client *game.Client) {
 			if msg.Index >= 0 && msg.Index < 16 {
 				// Update this client's board
 				client.Board[msg.Index] = !client.Board[msg.Index]
+				log.Printf("[%s] Client %s marked tile %d (sequence: %d)", time.Now().Format(time.RFC3339), client.Name, msg.Index, msg.Sequence)
 
 				// Check for win
 				hasWon := game.CheckWin(client.Board)
+				if hasWon {
+					log.Printf("[%s] Client %s has won the game!", time.Now().Format(time.RFC3339), client.Name)
+				}
 
 				// Send updated board state back to this client
 				response := Message{
@@ -119,8 +128,7 @@ func (h *Handler) readPump(client *game.Client) {
 					case client.Send <- responseMsg:
 						// Message sent successfully
 					default:
-						// Channel is full, log error and close connection
-						log.Printf("Failed to send response to client %s - channel full", client.Name)
+						log.Printf("[%s] Failed to send response to client %s - channel full", time.Now().Format(time.RFC3339), client.Name)
 						client.Conn.Close()
 						return
 					}
@@ -138,6 +146,7 @@ func (h *Handler) readPump(client *game.Client) {
 					if winResponse, err := json.Marshal(winMsg); err == nil {
 						for _, otherClient := range h.game.GetAllClients() {
 							if otherClient != client {
+								log.Printf("[%s] Notifying client %s about %s's win", time.Now().Format(time.RFC3339), otherClient.Name, client.Name)
 								otherClient.Send <- winResponse
 							}
 						}
@@ -151,6 +160,7 @@ func (h *Handler) readPump(client *game.Client) {
 // writePumps messages from the hub to the WebSocket connection.
 func (h *Handler) writePump(client *game.Client) {
 	defer func() {
+		log.Printf("[%s] Write pump closed for client %s", time.Now().Format(time.RFC3339), client.Name)
 		client.Conn.Close()
 	}()
 
@@ -165,6 +175,7 @@ func (h *Handler) writePump(client *game.Client) {
 
 			// Write the first message
 			if err := client.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
+				log.Printf("[%s] Error writing message to client %s: %v", time.Now().Format(time.RFC3339), client.Name, err)
 				return
 			}
 
@@ -173,6 +184,7 @@ func (h *Handler) writePump(client *game.Client) {
 			for i := 0; i < n; i++ {
 				message = <-client.Send
 				if err := client.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
+					log.Printf("[%s] Error writing queued message to client %s: %v", time.Now().Format(time.RFC3339), client.Name, err)
 					return
 				}
 			}
@@ -183,20 +195,21 @@ func (h *Handler) writePump(client *game.Client) {
 // broadcastClientList sends the current client list to all connected clients
 func (h *Handler) broadcastClientList() {
 	clientList := h.game.GetClientBoards()
+	log.Printf("[%s] Broadcasting client list update. Current clients: %v", time.Now().Format(time.RFC3339), clientList)
 	msg := Message{
 		Type:    TypeClientList,
 		Clients: clientList,
 	}
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
-		log.Printf("Error marshaling client list: %v", err)
+		log.Printf("[%s] Error marshaling client list: %v", time.Now().Format(time.RFC3339), err)
 		return
 	}
 	for _, client := range h.game.GetAllClients() {
 		select {
 		case client.Send <- msgBytes:
 		default:
-			log.Printf("Failed to send client list to client %s - channel full or closed", client.Name)
+			log.Printf("[%s] Failed to send client list to client %s - channel full or closed", time.Now().Format(time.RFC3339), client.Name)
 			h.game.RemoveClient(client)
 		}
 	}

@@ -122,7 +122,7 @@
             ws = new WebSocket('ws://' + window.location.host + '/ws');
             
             ws.onopen = function() {
-                console.log('Connected to server');
+                console.log(`[${new Date().toISOString()}] Connected to server as ${playerName}`);
                 // Send player name to server
                 ws.send(JSON.stringify({
                     type: MessageType.SET_NAME,
@@ -135,10 +135,10 @@
             
             ws.onmessage = function(event) {
                 const data = JSON.parse(event.data);
-                console.log('Received WebSocket message:', data);
+                console.log(`[${new Date().toISOString()}] Received WebSocket message:`, data);
                 switch(data.type) {
                     case MessageType.INIT_BOARD:
-                        console.log('Processing INIT_BOARD message');
+                        console.log(`[${new Date().toISOString()}] Initializing board for player ${playerName}`);
                         board = data.board;
                         words = data.words;
                         playerName = data.name;
@@ -146,7 +146,7 @@
                         updateBoardDisplay();
                         break;
                     case MessageType.TILE_MARKED:
-                        console.log('Processing TILE_MARKED message');
+                        console.log(`[${new Date().toISOString()}] Processing tile mark: index=${data.index}, sequence=${data.sequence}, win=${data.win}`);
                         // Only process if this is the expected sequence number
                         const pendingClick = pendingClicks.get(data.index);
                         if (pendingClick && pendingClick.sequence === data.sequence) {
@@ -154,31 +154,32 @@
                             pendingClicks.delete(data.index);
                             updateBoardDisplay();
                             if (data.win) {
+                                console.log(`[${new Date().toISOString()}] Player ${playerName} has won!`);
                                 showWinMessage(true);
                             }
                         } else {
-                            console.log('Ignoring out-of-order message for tile', data.index);
+                            console.log(`[${new Date().toISOString()}] Ignoring out-of-order message for tile ${data.index}`);
                         }
                         break;
                     case MessageType.PLAYER_WON:
-                        console.log('Processing PLAYER_WON message');
+                        console.log(`[${new Date().toISOString()}] Player ${data.name} has won the game!`);
                         showWinMessage(false, data.name);
                         break;
                     case MessageType.CLIENT_LIST:
-                        console.log('Processing CLIENT_LIST message:', data.clients);
+                        console.log(`[${new Date().toISOString()}] Updating player list. Current players:`, data.clients);
                         updatePlayerList(data.clients);
                         break;
                 }
             };
             
             ws.onclose = function() {
-                console.log('Disconnected from server');
+                console.log(`[${new Date().toISOString()}] Disconnected from server. Player: ${playerName}`);
                 // Try to reconnect after 5 seconds
                 setTimeout(connect, 5000);
             };
 
             ws.onerror = function(error) {
-                console.error('WebSocket error:', error);
+                console.error(`[${new Date().toISOString()}] WebSocket error for player ${playerName}:`, error);
                 // Clear any pending clicks on error
                 pendingClicks.clear();
                 updateBoardDisplay();
