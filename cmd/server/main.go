@@ -2,16 +2,25 @@ package main
 
 import (
 	"flag"
-	"log"
 	"math/rand"
 	"net/http"
 	"time"
 
 	"gobin/internal/game"
 	"gobin/internal/websocket"
+
+	"go.uber.org/zap"
 )
 
 func main() {
+	// Initialize logger
+	logger, err := zap.NewProduction()
+	if err != nil {
+		panic("failed to initialize logger: " + err.Error())
+	}
+	defer logger.Sync()
+	sugar := logger.Sugar()
+
 	// Parse command line flags
 	port := flag.String("port", "8080", "Port to listen on")
 	wordSetPath := flag.String("wordset", "static/sets/corporate.json", "Path to word set JSON file")
@@ -23,7 +32,10 @@ func main() {
 	// Create game instance
 	g := game.New()
 	if err := g.LoadWordSet(*wordSetPath); err != nil {
-		log.Fatalf("Failed to load word set: %v", err)
+		sugar.Fatalw("Failed to load word set",
+			"error", err,
+			"path", *wordSetPath,
+		)
 	}
 
 	// Create WebSocket handler
@@ -35,8 +47,14 @@ func main() {
 
 	// Start server
 	addr := ":" + *port
-	log.Printf("Starting server on %s", addr)
+	sugar.Infow("Starting server",
+		"address", addr,
+		"wordSetPath", *wordSetPath,
+	)
 	if err := http.ListenAndServe(addr, nil); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+		sugar.Fatalw("Failed to start server",
+			"error", err,
+			"address", addr,
+		)
 	}
 }
