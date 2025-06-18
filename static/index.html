@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>(go)bin[go]</title>
+    <link rel="stylesheet" href="css/styles.css" id="theme-style">
+    <style>
+        .theme-switcher {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        .theme-switcher select {
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            background-color: white;
+            cursor: pointer;
+        }
+        .update-name-btn {
+            margin-left: 10px;
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            background-color: #f0f0f0;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .update-name-btn:hover {
+            background-color: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="theme-switcher">
+        <select id="themeSelect" onchange="changeTheme(this.value)">
+            <option value="styles.css">default</option>
+            <option value="styles-dark.css">dark</option>
+            <option value="styles-techno.css">techno</option>
+            <option value="styles-clean.css">clean</option>
+            <option value="styles-nature.css">nature</option>
+        </select>
+    </div>
+    <div class="name-prompt" id="namePrompt">
+        <h2>name</h2>
+        <input type="text" id="nameInput" placeholder="Your name" maxlength="20" onkeypress="handleNameKeyPress(event)">
+        <button onclick="setName()">start</button>
+    </div>
+    <h1>corporate.json</h1>
+    <div class="game-container">
+        <div class="bingo-board" id="bingoBoard">
+            <!-- Tiles will be added dynamically -->
+        </div>
+        <div class="player-info">
+            <h2>players</h2>
+            <div class="player-name" id="playerName"></div>
+            <button onclick="updateName()" class="update-name-btn">✏️</button>
+            <h3>active</h3>
+            <ul class="player-list" id="playerList">
+                <!-- Player list will be added dynamically -->
+            </ul>
+        </div>
+    </div>
+    <div class="win-message" id="winMessage">
+        <h2>BINGO!</h2>
+        <p id="winText">You won!</p>
+        <button onclick="resetGame()">New Game</button>
+    </div>
+    <script src="js/messages.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html> 

@@ -1,0 +1,167 @@
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: Arial, sans-serif;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+}
+.game-container {
+    display: flex;
+    gap: 20px;
+    max-width: 1200px;
+    margin: 20px auto;
+}
+.bingo-board {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+    width: 600px;
+}
+.bingo-tile {
+    aspect-ratio: 1;
+    border: 1px solid #444;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 10px;
+    cursor: pointer;
+    background-color: #2d2d2d;
+    font-size: 0.9em;
+    word-wrap: break-word;
+    overflow: hidden;
+    transition: background-color 0.2s ease;
+    color: #e0e0e0;
+}
+.bingo-tile.marked {
+    background-color: #2d5a27;
+}
+.bingo-tile.loading {
+    background-color: #3d3d3d;
+    cursor: not-allowed;
+}
+.win-message {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.9);
+    color: #e0e0e0;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    display: none;
+    z-index: 1000;
+    border: 1px solid #444;
+}
+.win-message.show {
+    display: block;
+}
+.win-message h2 {
+    margin: 0 0 10px 0;
+    color: #4CAF50;
+}
+.win-message button {
+    background-color: #2d5a27;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 10px;
+    color: #e0e0e0;
+}
+.win-message button:hover {
+    background-color: #3d7a37;
+}
+.player-info {
+    background-color: #2d2d2d;
+    padding: 20px;
+    border-radius: 10px;
+    min-width: 200px;
+    border: 1px solid #444;
+}
+.player-info h2 {
+    margin-top: 0;
+    color: #e0e0e0;
+}
+.player-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.player-list li {
+    padding: 5px 0;
+    border-bottom: 1px solid #444;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.player-list li:last-child {
+    border-bottom: none;
+}
+.player-name {
+    font-weight: bold;
+    color: #e0e0e0;
+}
+.tile-count {
+    background-color: #2d5a27;
+    color: #e0e0e0;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.9em;
+}
+.name-prompt {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #2d2d2d;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    text-align: center;
+    border: 1px solid #444;
+}
+.name-prompt input {
+    padding: 8px;
+    margin: 10px 0;
+    border: 1px solid #444;
+    border-radius: 4px;
+    width: 200px;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+}
+.name-prompt button {
+    background-color: #2d5a27;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #e0e0e0;
+}
+.name-prompt button:hover {
+    background-color: #3d7a37;
+}
+.name-prompt.hidden {
+    display: none;
+}
+.mini-board {
+    display: grid;
+    grid-template-columns: repeat(4, 12px);
+    grid-gap: 2px;
+    margin-left: 10px;
+}
+.mini-tile {
+    width: 12px;
+    height: 12px;
+    background: #2d2d2d;
+    border: 1px solid #444;
+    display: inline-block;
+    border-radius: 2px;
+}
+.mini-tile.marked {
+    background: #2d5a27;
+    border: 1px solid #3d7a37;
+} 
