@@ -298,7 +298,7 @@ func TestBroadcastClientList_RemovesFullChannelClient(t *testing.T) {
 	client := &game.Client{
 		ID:    "test-client",
 		Name:  "FullChannel",
-		Board: make([]string, 16),
+		Board: make([]string, game.BoardSize),
 		Send:  make(chan []byte, 1), // Small buffer
 	}
 	// Fill the channel to simulate a full channel
@@ -311,7 +311,7 @@ func TestBroadcastClientList_RemovesFullChannelClient(t *testing.T) {
 	normalClient := &game.Client{
 		ID:    "test-client2",
 		Name:  "Normal",
-		Board: make([]string, 16),
+		Board: make([]string, game.BoardSize),
 		Send:  make(chan []byte, 1),
 	}
 	g.AddClient(normalClient)
@@ -372,8 +372,8 @@ func TestWebSocketHandler(t *testing.T) {
 		t.Errorf("Expected message type %s, got %s", TypeInitBoard, initMsg.Type)
 	}
 
-	if len(initMsg.Board) != 16 {
-		t.Errorf("Expected board length 16, got %d", len(initMsg.Board))
+	if len(initMsg.Board) != game.BoardSize {
+		t.Errorf("Expected board length %d, got %d", game.BoardSize, len(initMsg.Board))
 	}
 
 	// Test marking a tile

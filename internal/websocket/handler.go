@@ -52,8 +52,8 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	// Create new client with temporary name
 	client := &game.Client{
 		ID:    fmt.Sprintf("client-%d", len(h.game.GetClients())+1),
-		Name:  "Anonymous",        // Will be updated when client sends their name
-		Board: make([]string, 16), // Initialize with empty strings
+		Name:  "Anonymous",                    // Will be updated when client sends their name
+		Board: make([]string, game.BoardSize), // Initialize with empty strings
 		Conn:  conn,
 		Send:  make(chan []byte, 256),
 	}
@@ -126,7 +126,7 @@ func (h *Handler) readPump(client *game.Client) {
 			}
 
 		case TypeMarkTile:
-			if msg.Index >= 0 && msg.Index < 16 {
+			if msg.Index >= 0 && msg.Index < game.BoardSize {
 				// Update this client's board
 				if client.Board[msg.Index] == "" {
 					words := h.game.GetWords()

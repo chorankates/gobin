@@ -106,7 +106,7 @@ func TestCountMarkedTiles(t *testing.T) {
 				"word9", "word10", "word11", "word12",
 				"word13", "word14", "word15", "word16",
 			},
-			expected: 16,
+			expected: BoardSize,
 		},
 	}
 
@@ -205,7 +205,7 @@ func TestGetClientBoards(t *testing.T) {
 		Board: []string{
 			"word1", "", "", "",
 			"word2", "", "", "",
-			"word3", "", "", "",
+			"", "", "", "",
 			"", "", "", "",
 		},
 	}
@@ -237,13 +237,13 @@ func TestGetClientBoards(t *testing.T) {
 	}
 
 	// Verify the board contents
-	if len(boards["Player1"]) != 16 || boards["Player1"][0] != "word1" {
+	if len(boards["Player1"]) != BoardSize || boards["Player1"][0] != "word1" {
 		t.Error("Player1's board not correctly stored")
 	}
-	if len(boards["Player2"]) != 16 || boards["Player2"][0] != "word1" {
+	if len(boards["Player2"]) != BoardSize || boards["Player2"][0] != "word1" {
 		t.Error("Player2's board not correctly stored")
 	}
-	if len(boards["Player3"]) != 16 || boards["Player3"][0] != "" {
+	if len(boards["Player3"]) != BoardSize || boards["Player3"][0] != "" {
 		t.Error("Player3's board not correctly stored")
 	}
 }
@@ -303,4 +303,5 @@ func TestLoadWordSet(t *testing.T) {
 	if len(shuffled) != 3 {
 		t.Errorf("Expected 3 words, got %d", len(shuffled))
 	}
+
 }

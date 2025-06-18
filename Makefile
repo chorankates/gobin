@@ -9,7 +9,7 @@ build:
 	@go build -o bin/server cmd/server/main.go
 
 # Run the server
-run:
+run server:
 	@echo "Running server..."
 	@go run cmd/server/main.go
 
@@ -19,7 +19,7 @@ test:
 	@go test -v ./...
 
 # Run tests with coverage
-test-coverage:
+test-coverage cover:
 	@echo "Running tests with coverage..."
 	@go test -v -coverprofile=coverage.out ./...
 	@go tool cover -html=coverage.out -o coverage.html

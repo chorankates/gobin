@@ -11,6 +11,10 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const (
+	BoardSize = 16
+)
+
 // Game represents the bingo game state
 type Game struct {
 	clients map[*Client]bool
@@ -85,7 +89,7 @@ func (g *Game) GetClients() map[string]int {
 // CheckWin checks if a board has a winning pattern
 func CheckWin(board []string) bool {
 	// Check rows
-	for i := 0; i < 16; i += 4 {
+	for i := 0; i < BoardSize; i += 4 {
 		if board[i] != "" && board[i+1] != "" && board[i+2] != "" && board[i+3] != "" {
 			return true
 		}
@@ -138,7 +142,7 @@ func CalculateWinProgress(board []string) int {
 	maxMarkedInLine := 0
 
 	// Check rows
-	for i := 0; i < 16; i += 4 {
+	for i := 0; i < BoardSize; i += 4 {
 		markedInRow := 0
 		for j := 0; j < 4; j++ {
 			if board[i+j] != "" {
@@ -153,7 +157,7 @@ func CalculateWinProgress(board []string) int {
 	// Check columns
 	for i := 0; i < 4; i++ {
 		markedInCol := 0
-		for j := 0; j < 16; j += 4 {
+		for j := 0; j < BoardSize; j += 4 {
 			if board[i+j] != "" {
 				markedInCol++
 			}
